@@ -8,7 +8,7 @@ import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from inference import (CLASSES, MODEL_PATH, REVIEW_CONFIDENCE, REVIEW_MARGIN, ArrhythmiaPredictor,
                        ECGInputError, label_from_filename, needs_review, prepare_input, prepare_wfdb)
@@ -27,7 +27,7 @@ RECORD_NOTES = {
     "232": "Sinus bradycardia with many atrial premature beats and long pauses.",
 }
 
-app = FastAPI(title="ECG Arrhythmia Detection API", version="1.1.0")
+app = FastAPI(title="ECG Arrhythmia Detection API", version="1.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
@@ -81,7 +81,9 @@ def build_response(prepared, filename: str):
             confusion[r["true_label"], r["prediction"]] += 1
         confusion = confusion.tolist()
 
-    return {
+    # Everything is already plain Python types; JSONResponse skips FastAPI's slow
+    # re-encoding of the large payload (noticeable on low-CPU hosting plans)
+    return JSONResponse({
         "filename": filename,
         "mode": mode,
         "num_beats": len(beats),
@@ -100,7 +102,7 @@ def build_response(prepared, filename: str):
         },
         "signal": signal_info,
         "results": results,
-    }
+    })
 
 
 def run_prepare(fn, *args):

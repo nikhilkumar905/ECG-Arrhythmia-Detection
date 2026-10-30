@@ -31,6 +31,11 @@ BEAT_LEN = 187
 TARGET_FS = 125
 MAX_BEATS = 5000
 MAX_SIGNAL_SEC = 60 * 60
+INFER_BATCH = int(os.getenv("INFER_BATCH", "64"))
+
+# Shared/fractional-CPU hosts (Render sets RENDER=true) run faster and leaner on one thread
+if os.getenv("TORCH_THREADS") or os.getenv("RENDER"):
+    torch.set_num_threads(int(os.getenv("TORCH_THREADS", "1")))
 
 # A prediction is flagged for review when the model is unsure or torn between two classes
 REVIEW_CONFIDENCE = 0.70
@@ -103,8 +108,9 @@ class ArrhythmiaPredictor:
         x = self.scaler.transform(beats.astype(np.float64))
         x = torch.from_numpy(x).float().unsqueeze(1)  # (N, 1, 187)
         probs, attention = [], []
-        for i in range(0, len(x), 1024):
-            probs.append(torch.softmax(self.model(x[i:i + 1024]), dim=1))
+        # Small batches keep peak memory low enough for 512 MB hosting plans
+        for i in range(0, len(x), INFER_BATCH):
+            probs.append(torch.softmax(self.model(x[i:i + INFER_BATCH]), dim=1))
             attention.append(torch.softmax(self._attention_scores, dim=1).squeeze(-1))
         return torch.cat(probs).numpy(), torch.cat(attention).numpy()
 
