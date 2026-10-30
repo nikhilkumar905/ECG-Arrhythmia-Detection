@@ -30,7 +30,11 @@ RECORD_NOTES = {
 app = FastAPI(title="ECG Arrhythmia Detection API", version="1.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(","),
+    allow_origins=[o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
+    # Vercel production/preview domains and local development are always allowed
+    allow_origin_regex=os.getenv(
+        "CORS_ORIGIN_REGEX", r"https://[a-z0-9-]+\.vercel\.app|http://(localhost|127\.0\.0\.1)(:\d+)?"
+    ),
     allow_methods=["*"],
     allow_headers=["*"],
 )

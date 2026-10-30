@@ -1,11 +1,15 @@
-const BASE = import.meta.env.VITE_API_URL ?? ''
+const BASE = (import.meta.env.VITE_API_URL ?? '').trim().replace(/\/+$/, '')
+
+const UNREACHABLE = BASE
+  ? `Cannot reach the backend at ${BASE}. It may still be starting up - wait a minute and try again.`
+  : 'Cannot reach the backend. Is the FastAPI server running on port 8001?'
 
 async function request(path, options) {
   let res
   try {
     res = await fetch(`${BASE}${path}`, options)
   } catch {
-    throw new Error('Cannot reach the backend. Is the FastAPI server running on port 8001?')
+    throw new Error(UNREACHABLE)
   }
   const body = await res.json().catch(() => ({}))
   if (!res.ok) {
@@ -16,6 +20,19 @@ async function request(path, options) {
 }
 
 export const getInfo = () => request('/api/info')
+
+// Free hosting puts the backend to sleep when idle; keep retrying while it wakes up
+export async function waitForBackend(onRetry, attempts = 18, delayMs = 5000) {
+  for (let i = 1; ; i++) {
+    try {
+      return await getInfo()
+    } catch (e) {
+      if (i >= attempts) throw e
+      onRetry?.(i)
+      await new Promise((r) => setTimeout(r, delayMs))
+    }
+  }
+}
 export const getSamples = () => request('/api/samples')
 export const getRecords = () => request('/api/records')
 export const getPerformance = () => request('/api/performance')

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getInfo, getRecords, getSamples, predictFiles, predictRecord, predictSample } from './api'
+import { getRecords, getSamples, predictFiles, predictRecord, predictSample, waitForBackend } from './api'
 import { beatValues, CLASSES } from './classes'
 import UploadPanel from './components/UploadPanel'
 import BeatInspector from './components/BeatInspector'
@@ -90,12 +90,20 @@ export default function App() {
   }
 
   useEffect(() => {
-    getInfo().then((i) => { setInfo(i); setOnline(true) }).catch(() => setOnline(false))
-    getSamples().then(setSamples).catch(() => {})
-    getRecords().then(setRecords).catch(() => {})
-    // Deep links, e.g. /?sample=sample_003_Ventricular_label2.csv or /?record=208
-    if (params.get('sample')) run(() => predictSample(params.get('sample')))
-    else if (params.get('record')) run(() => predictRecord(params.get('record')))
+    let cancelled = false
+    waitForBackend(() => !cancelled && setOnline('waking'))
+      .then((i) => {
+        if (cancelled) return
+        setInfo(i)
+        setOnline(true)
+        getSamples().then(setSamples).catch(() => {})
+        getRecords().then(setRecords).catch(() => {})
+        // Deep links, e.g. /?sample=sample_003_Ventricular_label2.csv or /?record=208
+        if (params.get('sample')) run(() => predictSample(params.get('sample')))
+        else if (params.get('record')) run(() => predictRecord(params.get('record')))
+      })
+      .catch(() => !cancelled && setOnline(false))
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -136,9 +144,9 @@ export default function App() {
           <button className={page === 'analyze' ? 'active' : ''} onClick={() => setPage('analyze')}>Analyze</button>
           <button className={page === 'performance' ? 'active' : ''} onClick={() => setPage('performance')}>Model performance</button>
         </nav>
-        <div className={`status ${online === false ? 'off' : online ? 'on' : ''}`}>
+        <div className={`status ${online === false ? 'off' : online === true ? 'on' : ''}`}>
           <i />
-          {online === null ? 'Connecting…' : online ? 'Model online' : 'Backend offline'}
+          {{ null: 'Connecting…', waking: 'Waking up server…', true: 'Model online', false: 'Backend offline' }[String(online)]}
         </div>
       </header>
 
