@@ -6,7 +6,8 @@ Upload single beats, beat batches, raw ECG recordings or PhysioNet records and g
 confidence scores and model-attention visualisations.
 
 **Repository:** https://github.com/nikhilkumar905/ECG-Arrhythmia-Detection
-**Live demo:** _not deployed yet_
+
+**Live demo:** https://ecg-arrhythmia-detection-weld.vercel.app/
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
