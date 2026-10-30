@@ -9,6 +9,9 @@ confidence scores and model-attention visualisations.
 
 **Live demo:** https://ecg-arrhythmia-detection-weld.vercel.app/
 
+**Model weights (Hugging Face):** https://huggingface.co/nikhilkumar905/ECG-Arrhythmia-Detection
+
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-FFD21E)](https://huggingface.co/nikhilkumar905/ECG-Arrhythmia-Detection)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)
@@ -70,11 +73,41 @@ confidence scores and model-attention visualisations.
 
 The training notebook is [`ecg(2).ipynb`](ecg(2).ipynb) (Google Colab, T4 GPU).
 
+### Pretrained weights on Hugging Face
+
+The trained model and scaler are published at
+[nikhilkumar905/ECG-Arrhythmia-Detection](https://huggingface.co/nikhilkumar905/ECG-Arrhythmia-Detection)
+(identical to the files in `models/`):
+
+| File | Description |
+|---|---|
+| `best_model.pth` | PyTorch `state_dict` of `ECG_CNN_LSTM_Deep` (10.6 MB) |
+| `scaler.pkl` | scikit-learn 1.6.1 `StandardScaler` fitted on the training beats |
+
+Use them in your own code (run from `backend/`, after `pip install huggingface_hub`):
+
+```python
+import joblib, torch
+from huggingface_hub import hf_hub_download
+from model_definition import ECG_CNN_LSTM_Deep
+
+repo = "nikhilkumar905/ECG-Arrhythmia-Detection"
+model = ECG_CNN_LSTM_Deep(num_classes=5)
+model.load_state_dict(torch.load(hf_hub_download(repo, "best_model.pth"), map_location="cpu"))
+model.eval()
+scaler = joblib.load(hf_hub_download(repo, "scaler.pkl"))
+
+# beats: NumPy array of shape (N, 187)
+x = torch.tensor(scaler.transform(beats), dtype=torch.float32).unsqueeze(1)
+pred = model(x).argmax(1)   # 0=N, 1=S, 2=V, 3=F, 4=Q
+```
+
 ## Tech Stack
 
 - **Frontend:** React 19, Vite, custom SVG charts (no UI framework)
 - **Backend:** FastAPI, PyTorch, scikit-learn, SciPy, WFDB
 - **Training:** PyTorch on Google Colab
+- **Hosting:** Vercel (frontend), Render (backend), Hugging Face Hub (model weights)
 
 ## Project Structure
 
@@ -86,7 +119,7 @@ The training notebook is [`ecg(2).ipynb`](ecg(2).ipynb) (Google Colab, T4 GPU).
 │   ├── performance.py        # test-set metrics
 │   └── requirements.txt
 ├── frontend/                 # React + Vite web app
-├── models/                   # best_model.pth, scaler.pkl
+├── models/                   # best_model.pth, scaler.pkl (also on Hugging Face)
 ├── examples/                 # beat batches and MIT-BIH records
 ├── test_samples_csv/         # 100 single-beat test samples
 ├── results/                  # training figures
