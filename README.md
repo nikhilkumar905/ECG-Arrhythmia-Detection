@@ -31,8 +31,10 @@ confidence scores and model-attention visualisations.
 
 ## Features
 
-- **Flexible input**: single beats or batches (187 samples per row), raw continuous ECG (CSV / TXT / NPY) with
+- **Upload and analyze**: single beats or batches (187 samples per row), raw continuous ECG (CSV / TXT / NPY) with
   automatic R-peak detection, and PhysioNet WFDB records (`.hea` + `.dat`, optional `.atr` annotations)
+- **Random MIT-BIH beat**: load a random heartbeat from the held-out test set, optionally of a chosen class,
+  preview its waveform and analyze it
 - **Per-beat results**: predicted class, confidence ring and probabilities for all five classes
 - **Model attention**: highlights the parts of each beat the attention layer focused on
 - **Needs-review flag**: marks beats with low confidence (< 70%) or two close top classes (margin < 20%)
@@ -40,7 +42,6 @@ confidence scores and model-attention visualisations.
   ← / → keyboard navigation
 - **Accuracy vs. labels**: confusion matrix and mismatch filter whenever true labels or annotations are provided
 - **Model performance page**: test-set accuracy, F1, per-class precision / recall / specificity and training figures
-- **Built-in examples**: 100 test heartbeats and three 30-minute MIT-BIH recordings (100, 208, 232)
 - **CSV export** of all predictions; responsive layout with dark and light themes
 
 | Single beat | Model performance |
@@ -120,8 +121,8 @@ pred = model(x).argmax(1)   # 0=N, 1=S, 2=V, 3=F, 4=Q
 │   └── requirements.txt
 ├── frontend/                 # React + Vite web app
 ├── models/                   # best_model.pth, scaler.pkl (also on Hugging Face)
-├── examples/                 # beat batches and MIT-BIH records
-├── test_samples_csv/         # 100 single-beat test samples
+├── examples/                 # beat batches and MIT-BIH records (100, 208, 232) to try as uploads
+├── test_samples_csv/         # MIT-BIH test beats used by the random-beat option
 ├── results/                  # training figures
 ├── docs/                     # screenshots
 ├── ecg(2).ipynb              # training notebook
@@ -166,10 +167,9 @@ Interactive API docs are available at http://localhost:8001/docs.
 |---|---|---|
 | GET | `/api/info` | Model and class information |
 | POST | `/api/predict` | Classify an uploaded file (`files`, optional `sampling_rate`) |
-| GET | `/api/samples` | List test samples |
-| POST | `/api/samples/{name}/predict` | Classify a test sample |
-| GET | `/api/records` | List example MIT-BIH records |
-| POST | `/api/records/{name}/predict` | Classify an example record |
+| GET | `/api/samples` | List the MIT-BIH test beats available for the random-beat option |
+| GET | `/api/samples/{name}/download` | Raw values of one test beat (CSV) |
+| POST | `/api/samples/{name}/predict` | Classify a test beat |
 | GET | `/api/performance` | Test-set metrics |
 
 ## Limitations

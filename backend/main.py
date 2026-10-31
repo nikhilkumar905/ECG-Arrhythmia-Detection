@@ -16,18 +16,10 @@ from performance import CONFUSION_MATRIX, FIGURES, metrics_from_confusion
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 SAMPLES_DIR = Path(os.getenv("SAMPLES_DIR", ROOT_DIR / "test_samples_csv"))
-RECORDS_DIR = Path(os.getenv("RECORDS_DIR", ROOT_DIR / "examples" / "mitbih"))
 RESULTS_DIR = Path(os.getenv("RESULTS_DIR", ROOT_DIR / "results"))
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
-# Short descriptions of the bundled MIT-BIH example records
-RECORD_NOTES = {
-    "100": "Mostly normal sinus rhythm with a few atrial premature beats.",
-    "208": "Frequent PVCs and fusion beats, including couplets and trigeminy.",
-    "232": "Sinus bradycardia with many atrial premature beats and long pauses.",
-}
-
-app = FastAPI(title="ECG Arrhythmia Detection API", version="1.2.0")
+app = FastAPI(title="ECG Arrhythmia Detection API", version="1.3.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
@@ -178,32 +170,6 @@ def download_sample(name: str):
 def predict_sample(name: str):
     path = contained_file(SAMPLES_DIR, name)
     return build_response(run_prepare(prepare_input, path.read_bytes(), path.name, 125.0), path.name)
-
-
-# ---------------------------------------------------------------- bundled MIT-BIH records
-
-@app.get("/api/records")
-def list_records():
-    if not RECORDS_DIR.is_dir():
-        return []
-    records = []
-    for hea in sorted(RECORDS_DIR.glob("*.hea")):
-        n_sig, fs, n_samples = hea.read_text().split()[1:4]
-        records.append({
-            "name": hea.stem,
-            "duration_sec": round(int(n_samples) / float(fs)),
-            "sampling_rate": float(fs),
-            "annotated": hea.with_suffix(".atr").exists(),
-            "note": RECORD_NOTES.get(hea.stem, ""),
-        })
-    return records
-
-
-@app.post("/api/records/{name}/predict")
-def predict_record(name: str):
-    hea = contained_file(RECORDS_DIR, f"{name}.hea")
-    files = {p.name: p.read_bytes() for p in RECORDS_DIR.glob(f"{hea.stem}.*")}
-    return build_response(run_prepare(prepare_wfdb, files), f"MIT-BIH record {name}")
 
 
 # ---------------------------------------------------------------- model performance

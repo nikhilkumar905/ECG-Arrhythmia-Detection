@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getRecords, getSamples, predictFiles, predictRecord, predictSample, waitForBackend } from './api'
+import { getSamples, predictFiles, predictSample, waitForBackend } from './api'
 import { beatValues, CLASSES } from './classes'
 import UploadPanel from './components/UploadPanel'
 import BeatInspector from './components/BeatInspector'
@@ -36,7 +36,7 @@ function EmptyState() {
         <svg viewBox="0 0 24 24" width="56" height="56"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21Z" fill="currentColor" /></svg>
       </div>
       <h2>Ready when you are</h2>
-      <p className="muted">Upload an ECG file or choose an example. The model classifies every heartbeat into one of five AAMI classes.</p>
+      <p className="muted">Upload an ECG file or load a random MIT-BIH heartbeat, then press Analyze. The model classifies every heartbeat into one of five AAMI classes.</p>
       <div className="legend-grid">
         {CLASSES.map((c) => (
           <div key={c.id} className="legend-card" style={{ '--chip': c.color }}>
@@ -60,7 +60,6 @@ export default function App() {
   const [info, setInfo] = useState(null)
   const [online, setOnline] = useState(null)
   const [samples, setSamples] = useState([])
-  const [records, setRecords] = useState([])
   const [data, setData] = useState(null)
   const [selected, setSelected] = useState(0)
   const [cellFilter, setCellFilter] = useState(null)
@@ -97,10 +96,8 @@ export default function App() {
         setInfo(i)
         setOnline(true)
         getSamples().then(setSamples).catch(() => {})
-        getRecords().then(setRecords).catch(() => {})
-        // Deep links, e.g. /?sample=sample_003_Ventricular_label2.csv or /?record=208
+        // Deep link, e.g. /?sample=sample_003_Ventricular_label2.csv
         if (params.get('sample')) run(() => predictSample(params.get('sample')))
-        else if (params.get('record')) run(() => predictRecord(params.get('record')))
       })
       .catch(() => !cancelled && setOnline(false))
     return () => { cancelled = true }
@@ -171,10 +168,9 @@ export default function App() {
 
           <main className="layout">
             <aside>
-              <UploadPanel samples={samples} records={records} loading={loading}
+              <UploadPanel samples={samples} loading={loading}
                 onFiles={(files, fs) => run(() => predictFiles(files, fs))}
-                onSample={(name) => run(() => predictSample(name))}
-                onRecord={(name) => run(() => predictRecord(name))} />
+                onSample={(name) => run(() => predictSample(name))} />
             </aside>
 
             <div className="results" ref={resultsRef}>

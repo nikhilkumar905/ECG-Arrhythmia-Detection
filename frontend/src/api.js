@@ -34,14 +34,23 @@ export async function waitForBackend(onRetry, attempts = 18, delayMs = 5000) {
   }
 }
 export const getSamples = () => request('/api/samples')
-export const getRecords = () => request('/api/records')
 export const getPerformance = () => request('/api/performance')
 export const figureUrl = (file) => `${BASE}/api/figures/${encodeURIComponent(file)}`
 
 export const predictSample = (name) =>
   request(`/api/samples/${encodeURIComponent(name)}/predict`, { method: 'POST' })
-export const predictRecord = (name) =>
-  request(`/api/records/${encodeURIComponent(name)}/predict`, { method: 'POST' })
+
+// The 187 values of a bundled MIT-BIH test beat, for previewing it before analysis
+export async function getSampleValues(name) {
+  let res
+  try {
+    res = await fetch(`${BASE}/api/samples/${encodeURIComponent(name)}/download`)
+  } catch {
+    throw new Error(UNREACHABLE)
+  }
+  if (!res.ok) throw new Error(`Could not load the sample (${res.status})`)
+  return (await res.text()).trim().split(/[,\s]+/).map(Number)
+}
 
 export function predictFiles(files, samplingRate) {
   const form = new FormData()
