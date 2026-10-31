@@ -2,8 +2,8 @@
 
 A full-stack web application that classifies ECG heartbeats into the five AAMI arrhythmia classes with a deep
 **CNN + BiLSTM + Attention** network trained on the MIT-BIH Arrhythmia Database.
-Upload single beats, beat batches, raw ECG recordings or PhysioNet records and get per-beat predictions,
-confidence scores and model-attention visualisations.
+Upload a single heartbeat or a batch of beats, or analyze a random beat from the MIT-BIH test set, and get
+per-beat predictions, confidence scores and model-attention visualisations.
 
 **Repository:** https://github.com/nikhilkumar905/ECG-Arrhythmia-Detection
 
@@ -17,7 +17,7 @@ confidence scores and model-attention visualisations.
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 
-![Analysis of MIT-BIH record 208](docs/analysis.png)
+![Analysis of a batch of 100 MIT-BIH test beats](docs/analysis.png)
 
 ## Classes
 
@@ -31,16 +31,14 @@ confidence scores and model-attention visualisations.
 
 ## Features
 
-- **Upload and analyze**: single beats or batches (187 samples per row), raw continuous ECG (CSV / TXT / NPY) with
-  automatic R-peak detection, and PhysioNet WFDB records (`.hea` + `.dat`, optional `.atr` annotations)
+- **Upload and analyze**: a single heartbeat or a batch of up to 5,000 beats (CSV / TXT / NPY, 187 samples per row)
 - **Random MIT-BIH beat**: load a random heartbeat from the held-out test set, optionally of a chosen class,
   preview its waveform and analyze it
 - **Per-beat results**: predicted class, confidence ring and probabilities for all five classes
 - **Model attention**: highlights the parts of each beat the attention layer focused on
 - **Needs-review flag**: marks beats with low confidence (< 70%) or two close top classes (margin < 20%)
-- **Recording viewer**: 12-second ECG window, colour-coded beat markers, whole-recording overview and
-  ← / → keyboard navigation
-- **Accuracy vs. labels**: confusion matrix and mismatch filter whenever true labels or annotations are provided
+- **Batch view**: class distribution, sortable list of all beats with filters, and ← / → keyboard navigation
+- **Accuracy vs. labels**: confusion matrix and mismatch filter whenever true labels are provided
 - **Model performance page**: test-set accuracy, F1, per-class precision / recall / specificity and training figures
 - **CSV export** of all predictions; responsive layout with dark and light themes
 
@@ -106,7 +104,7 @@ pred = model(x).argmax(1)   # 0=N, 1=S, 2=V, 3=F, 4=Q
 ## Tech Stack
 
 - **Frontend:** React 19, Vite, custom SVG charts (no UI framework)
-- **Backend:** FastAPI, PyTorch, scikit-learn, SciPy, WFDB
+- **Backend:** FastAPI, PyTorch, scikit-learn
 - **Training:** PyTorch on Google Colab
 - **Hosting:** Vercel (frontend), Render (backend), Hugging Face Hub (model weights)
 
@@ -121,7 +119,7 @@ pred = model(x).argmax(1)   # 0=N, 1=S, 2=V, 3=F, 4=Q
 │   └── requirements.txt
 ├── frontend/                 # React + Vite web app
 ├── models/                   # best_model.pth, scaler.pkl (also on Hugging Face)
-├── examples/                 # beat batches and MIT-BIH records (100, 208, 232) to try as uploads
+├── examples/                 # beat batches (with and without labels) to try as uploads
 ├── test_samples_csv/         # MIT-BIH test beats used by the random-beat option
 ├── results/                  # training figures
 ├── docs/                     # screenshots
@@ -157,16 +155,17 @@ Interactive API docs are available at http://localhost:8001/docs.
 
 | Type | Format |
 |---|---|
-| Heartbeats | One beat per row, 187 values. An optional 188th column (0–4) is used as the true label. |
-| Continuous ECG | One column (or row) of raw samples; set the sampling rate under *Supported formats* (default 360 Hz). |
-| WFDB record | Select the `.hea` and `.dat` files together; add `.atr` to compare with the cardiologist annotations. |
+| Heartbeats | One beat per row, 187 values at 125 Hz scaled 0–1 (MIT-BIH heartbeat format); one row for a single beat, many rows for a batch. |
+| Labels (optional) | A 188th column (0 = N, 1 = S, 2 = V, 3 = F, 4 = Q) is used as the true class to report accuracy. |
+
+`.csv` and `.txt` files may be comma, semicolon, tab or space separated; header lines are skipped. `.npy` arrays work too.
 
 ## API
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/info` | Model and class information |
-| POST | `/api/predict` | Classify an uploaded file (`files`, optional `sampling_rate`) |
+| POST | `/api/predict` | Classify an uploaded file of heartbeats (`file`) |
 | GET | `/api/samples` | List the MIT-BIH test beats available for the random-beat option |
 | GET | `/api/samples/{name}/download` | Raw values of one test beat (CSV) |
 | POST | `/api/samples/{name}/predict` | Classify a test beat |

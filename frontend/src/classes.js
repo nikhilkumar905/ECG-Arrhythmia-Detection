@@ -14,17 +14,6 @@ export const CLASSES = [
 
 export const pct = (v, digits = 1) => `${(v * 100).toFixed(digits)}%`
 
-// The 187-sample input of beat i. Beats cut from a recording are sliced from the signal.
-export function beatValues(data, i) {
-  const r = data.results[i]
-  if (r.values) return r.values
-  const { signal, peaks, beat_lengths: lengths } = data.signal
-  const start = peaks[i]
-  const out = signal.slice(start, start + lengths[i])
-  while (out.length < 187) out.push(0)
-  return out
-}
-
 export const reviewReason = (r) =>
   r.confidence < 0.7
     ? `Low confidence (${pct(r.confidence)})`

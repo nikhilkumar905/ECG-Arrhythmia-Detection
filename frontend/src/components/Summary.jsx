@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CLASSES, pct, reviewReason } from '../classes'
 import ConfusionMatrix from './ConfusionMatrix'
-import { SignalStrip } from './Waveform'
 
 function Stat({ label, value, hint, tone }) {
   return (
@@ -14,7 +13,7 @@ function Stat({ label, value, hint, tone }) {
 }
 
 export function SummaryStats({ data }) {
-  const { summary, num_beats, signal } = data
+  const { summary, num_beats } = data
   return (
     <div className="stats">
       <Stat label="Beats analyzed" value={num_beats.toLocaleString()} hint={`${data.inference_ms} ms inference`} />
@@ -23,11 +22,8 @@ export function SummaryStats({ data }) {
       <Stat label="Need review" value={summary.review_beats.toLocaleString()}
         hint={`mean confidence ${pct(summary.mean_confidence)}`} tone={summary.review_beats ? 'warn' : 'good'} />
       {summary.accuracy != null ? (
-        <Stat label={signal?.annotated ? 'Accuracy vs annotations' : 'Accuracy vs labels'} value={pct(summary.accuracy)}
-          hint={signal ? `${signal.heart_rate_bpm} bpm · ${summary.labelled_beats.toLocaleString()} labelled beats` : `${summary.labelled_beats} labelled beats`}
-          tone={summary.accuracy > 0.95 ? 'good' : 'warn'} />
-      ) : signal ? (
-        <Stat label="Heart rate" value={<>{signal.heart_rate_bpm}<small> bpm</small></>} hint={`${Math.round(signal.duration_sec)}s recording`} />
+        <Stat label="Accuracy vs labels" value={pct(summary.accuracy)}
+          hint={`${summary.labelled_beats.toLocaleString()} labelled beats`} tone={summary.accuracy > 0.95 ? 'good' : 'warn'} />
       ) : (
         <Stat label="Dominant class" value={CLASSES[summary.dominant_class].name} />
       )}
@@ -58,36 +54,14 @@ export function Distribution({ counts, total }) {
   )
 }
 
-export function RecordingCard({ data, selected, onSelect }) {
-  const { signal, results } = data
-  return (
-    <section className="card">
-      <div className="row-between">
-        <h3>
-          {signal.record ? `Recording ${signal.record} · lead ${signal.lead}` : 'Recording'}
-          <span className="muted small"> · {Math.floor(signal.duration_sec / 60)}m {Math.round(signal.duration_sec % 60)}s</span>
-        </h3>
-        <span className="muted small">Click a marker to inspect · use ← → to step through beats</span>
-      </div>
-      <SignalStrip signal={signal.signal} peaks={signal.peaks} results={results} selected={selected} onSelect={onSelect} />
-    </section>
-  )
-}
-
 export function LabelledConfusion({ data, onCellClick }) {
   return (
     <section className="card">
       <div className="row-between">
-        <h3>Predictions vs {data.signal?.annotated ? 'cardiologist annotations' : 'true labels'}</h3>
+        <h3>Predictions vs true labels</h3>
         <span className="muted small">Click a cell to list those beats</span>
       </div>
       <ConfusionMatrix matrix={data.summary.confusion_matrix} onCellClick={onCellClick} />
-      {data.mode === 'record' && /^\d{3}$/.test(data.signal.record) && (
-        <p className="muted small note">
-          Note: the model's training beats were cut from the MIT-BIH recordings, so beats from this record may
-          have been seen during training. See <b>Model performance</b> for results on held-out test beats.
-        </p>
-      )}
     </section>
   )
 }
@@ -151,7 +125,7 @@ export function BeatTable({ results, selected, onSelect, cellFilter, onClearCell
                   </td>
                   {hasLabels && (
                     <td className={t && t.id !== r.prediction ? 'mismatch' : 'muted'}>
-                      {t ? t.name : '—'}{r.symbol && <span className="mono small"> ({r.symbol})</span>} {t && (t.id === r.prediction ? '✓' : '✗')}
+                      {t ? t.name : '—'} {t && (t.id === r.prediction ? '✓' : '✗')}
                     </td>
                   )}
                 </tr>

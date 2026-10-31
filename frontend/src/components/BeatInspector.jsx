@@ -44,8 +44,7 @@ export default function BeatInspector({ beat, values, total, onPrev, onNext }) {
           <div className="tags">
             {truth && (
               <span className={`truth ${correct ? 'ok' : 'bad'}`}>
-                {correct ? '✓ Matches' : '✗ Differs from'} {beat.symbol ? 'annotation' : 'true label'}: <b>{truth.name}</b>
-                {beat.symbol && <span className="mono"> ({beat.symbol})</span>}
+                {correct ? '✓ Matches' : '✗ Differs from'} true label: <b>{truth.name}</b>
               </span>
             )}
             {beat.needs_review && (

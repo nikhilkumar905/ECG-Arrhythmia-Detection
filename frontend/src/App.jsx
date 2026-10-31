@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { getSamples, predictFiles, predictSample, waitForBackend } from './api'
-import { beatValues, CLASSES } from './classes'
+import { getSamples, predictFile, predictSample, waitForBackend } from './api'
+import { CLASSES } from './classes'
 import UploadPanel from './components/UploadPanel'
 import BeatInspector from './components/BeatInspector'
 import PerformancePage from './components/PerformancePage'
-import { BeatTable, Distribution, LabelledConfusion, RecordingCard, SummaryStats } from './components/Summary'
+import { BeatTable, Distribution, LabelledConfusion, SummaryStats } from './components/Summary'
 
 function HeartbeatLogo() {
   return (
@@ -15,10 +15,10 @@ function HeartbeatLogo() {
 }
 
 function exportCsv(data) {
-  const header = ['beat', 'prediction', 'confidence', 'needs_review', ...CLASSES.map((c) => `p_${c.name}`), 'true_label', 'annotation']
+  const header = ['beat', 'prediction', 'confidence', 'needs_review', ...CLASSES.map((c) => `p_${c.name}`), 'true_label']
   const lines = data.results.map((r) => [
     r.index + 1, CLASSES[r.prediction].name, r.confidence.toFixed(5), r.needs_review, ...r.probabilities,
-    r.true_label != null ? CLASSES[r.true_label].name : '', r.symbol ?? '',
+    r.true_label != null ? CLASSES[r.true_label].name : '',
   ].join(','))
   const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv' })
   const a = Object.assign(document.createElement('a'), {
@@ -51,8 +51,6 @@ function EmptyState() {
     </section>
   )
 }
-
-const MODE_LABEL = { signal: 'Continuous recording', record: 'WFDB record' }
 
 export default function App() {
   const params = new URLSearchParams(window.location.search)
@@ -169,7 +167,7 @@ export default function App() {
           <main className="layout">
             <aside>
               <UploadPanel samples={samples} loading={loading}
-                onFiles={(files, fs) => run(() => predictFiles(files, fs))}
+                onFile={(file) => run(() => predictFile(file))}
                 onSample={(name) => run(() => predictSample(name))} />
             </aside>
 
@@ -194,16 +192,15 @@ export default function App() {
                       <h2 className="file-name">{data.filename}</h2>
                     </div>
                     <div className="result-actions">
-                      <span className="badge">{MODE_LABEL[data.mode] ?? (multi ? 'Beat batch' : 'Single beat')}</span>
+                      <span className="badge">{multi ? 'Beat batch' : 'Single beat'}</span>
                       <button className="btn btn-ghost" onClick={() => exportCsv(data)}>Export CSV</button>
                     </div>
                   </div>
 
                   {multi && <SummaryStats data={data} />}
-                  {data.signal && <RecordingCard data={data} selected={selected} onSelect={setSelected} />}
 
                   {beat && (
-                    <BeatInspector beat={beat} values={beatValues(data, selected)} total={data.num_beats}
+                    <BeatInspector beat={beat} values={beat.values} total={data.num_beats}
                       onPrev={() => setSelected((s) => Math.max(0, s - 1))}
                       onNext={() => setSelected((s) => Math.min(data.num_beats - 1, s + 1))} />
                   )}

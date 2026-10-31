@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { getSampleValues } from '../api'
 import { CLASSES } from '../classes'
 
-const ACCEPT = '.csv,.txt,.npy,.hea,.dat,.atr'
+const ACCEPT = '.csv,.txt,.npy'
 
 function Sparkline({ values }) {
   const w = 300, h = 70
@@ -18,26 +18,20 @@ function Sparkline({ values }) {
 
 const formatSize = (bytes) => (bytes < 1024 ? `${bytes} B` : bytes < 2 ** 20 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 2 ** 20).toFixed(1)} MB`)
 
-export default function UploadPanel({ samples, loading, onFiles, onSample }) {
+export default function UploadPanel({ samples, loading, onFile, onSample }) {
   const inputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
-  const [samplingRate, setSamplingRate] = useState(360)
   const [randomClass, setRandomClass] = useState('any')
-  // The input waiting to be analyzed: uploaded files or a random MIT-BIH beat
+  // The input waiting to be analyzed: an uploaded file or a random MIT-BIH beat
   const [selected, setSelected] = useState(null)
   const [loadingSample, setLoadingSample] = useState(false)
   const [sampleError, setSampleError] = useState('')
 
-  const chooseFiles = (files) => {
-    if (!files?.length) return
-    const list = [...files]
+  const chooseFile = (files) => {
+    const file = files?.[0]
+    if (!file) return
     setSampleError('')
-    setSelected({
-      kind: 'files',
-      files: list,
-      title: list.length === 1 ? list[0].name : `${list.length} files`,
-      detail: list.length === 1 ? formatSize(list[0].size) : list.map((f) => f.name).join(', '),
-    })
+    setSelected({ kind: 'file', file, title: file.name, detail: formatSize(file.size) })
   }
 
   const pool = samples.filter((s) => randomClass === 'any' || s.label === Number(randomClass))
@@ -65,7 +59,7 @@ export default function UploadPanel({ samples, loading, onFiles, onSample }) {
 
   const analyze = () => {
     if (!selected) return
-    if (selected.kind === 'files') onFiles(selected.files, samplingRate)
+    if (selected.kind === 'file') onFile(selected.file)
     else onSample(selected.name)
   }
 
@@ -80,14 +74,14 @@ export default function UploadPanel({ samples, loading, onFiles, onSample }) {
         className={`dropzone ${dragging ? 'dragging' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); chooseFiles(e.dataTransfer.files) }}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); chooseFile(e.dataTransfer.files) }}
         onClick={() => inputRef.current?.click()}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()}
       >
-        <input ref={inputRef} type="file" accept={ACCEPT} multiple hidden
-          onChange={(e) => { chooseFiles(e.target.files); e.target.value = '' }} />
+        <input ref={inputRef} type="file" accept={ACCEPT} hidden
+          onChange={(e) => { chooseFile(e.target.files); e.target.value = '' }} />
         <div className="drop-icon" aria-hidden>
           <svg viewBox="0 0 48 48" width="44" height="44">
             <path d="M24 31V13m0 0-7 7m7-7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -95,24 +89,16 @@ export default function UploadPanel({ samples, loading, onFiles, onSample }) {
           </svg>
         </div>
         <strong>Drop your ECG file here</strong>
-        <span className="muted">CSV, TXT, NPY · or a PhysioNet record (.hea + .dat + .atr)</span>
+        <span className="muted">CSV, TXT or NPY · one heartbeat per row · up to 20 MB</span>
       </div>
 
       <details className="formats">
-        <summary>Supported formats</summary>
+        <summary>File format</summary>
         <ul>
-          <li><b>Heartbeats:</b> one beat per row, 187 values (125 Hz, scaled 0–1). An optional 188th column is used as the true label.</li>
-          <li><b>Continuous recording:</b> a single column (or row) of raw ECG samples. Beats are detected automatically.</li>
-          <li><b>WFDB record:</b> select the <code>.hea</code> and <code>.dat</code> files together. Add the <code>.atr</code> file to compare against the cardiologist beat annotations.</li>
+          <li>One heartbeat per row: <b>187 values</b> sampled at 125 Hz and scaled to 0–1 (MIT-BIH heartbeat format). Shorter beats are zero-padded.</li>
+          <li>One row analyzes a single beat; many rows analyze a batch (up to 5,000 beats).</li>
+          <li>Optional <b>188th column</b>: the true class (0 = N, 1 = S, 2 = V, 3 = F, 4 = Q), used to report accuracy.</li>
         </ul>
-        <label className="field">
-          <span>Sampling rate of CSV/TXT recordings (WFDB records carry their own)</span>
-          <div className="input-suffix">
-            <input type="number" min={50} max={5000} value={samplingRate}
-              onChange={(e) => setSamplingRate(Number(e.target.value) || 360)} />
-            <span>Hz</span>
-          </div>
-        </label>
       </details>
 
       <div className="divider"><span>or</span></div>
@@ -147,7 +133,7 @@ export default function UploadPanel({ samples, loading, onFiles, onSample }) {
             <div className="selected-head">
               <span className="selected-icon" aria-hidden>
                 <svg viewBox="0 0 24 24" width="20" height="20">
-                  {selected.kind === 'files'
+                  {selected.kind === 'file'
                     ? <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                     : <path d="M3 12h4l3-8 4 16 3-8h4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />}
                 </svg>

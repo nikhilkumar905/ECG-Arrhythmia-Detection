@@ -2,16 +2,15 @@ import os
 import time
 from collections import Counter
 from pathlib import Path
-from typing import List
 
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from inference import (CLASSES, MODEL_PATH, REVIEW_CONFIDENCE, REVIEW_MARGIN, ArrhythmiaPredictor,
-                       ECGInputError, label_from_filename, needs_review, prepare_input, prepare_wfdb)
+                       ECGInputError, label_from_filename, needs_review, prepare_input)
 from performance import CONFUSION_MATRIX, FIGURES, metrics_from_confusion
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -19,7 +18,7 @@ SAMPLES_DIR = Path(os.getenv("SAMPLES_DIR", ROOT_DIR / "test_samples_csv"))
 RESULTS_DIR = Path(os.getenv("RESULTS_DIR", ROOT_DIR / "results"))
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
-app = FastAPI(title="ECG Arrhythmia Detection API", version="1.3.0")
+app = FastAPI(title="ECG Arrhythmia Detection API", version="1.4.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
@@ -37,14 +36,13 @@ predictor = ArrhythmiaPredictor()
 
 
 def build_response(prepared, filename: str):
-    beats, labels, mode, signal_info = prepared
+    beats, labels = prepared
     start = time.perf_counter()
     probs, attention = predictor.predict(beats)
     elapsed_ms = (time.perf_counter() - start) * 1000
     preds = probs.argmax(1)
     sorted_probs = np.sort(probs, axis=1)
     attention = attention / attention.max(1, keepdims=True)
-    symbols = (signal_info or {}).get("symbols")
 
     results = [
         {
@@ -56,9 +54,7 @@ def build_response(prepared, filename: str):
             "probabilities": [round(float(p), 5) for p in probs[i]],
             "attention": np.round(attention[i], 3).tolist(),
             "true_label": labels[i],
-            "symbol": symbols[i] if symbols else None,
-            # Beats cut from a recording are sliced from signal.signal by the client
-            "values": np.round(beats[i], 4).tolist() if mode == "beats" else None,
+            "values": np.round(beats[i], 4).tolist(),
         }
         for i in range(len(beats))
     ]
@@ -77,7 +73,6 @@ def build_response(prepared, filename: str):
     # re-encoding of the large payload (noticeable on low-CPU hosting plans)
     return JSONResponse({
         "filename": filename,
-        "mode": mode,
         "num_beats": len(beats),
         "inference_ms": round(elapsed_ms, 1),
         "summary": {
@@ -92,7 +87,6 @@ def build_response(prepared, filename: str):
             "labelled_beats": len(labelled),
             "confusion_matrix": confusion,
         },
-        "signal": signal_info,
         "results": results,
     })
 
@@ -124,22 +118,12 @@ def info():
 
 
 @app.post("/api/predict")
-async def predict(files: List[UploadFile] = File(...), sampling_rate: float = Form(360.0)):
-    if not 50 <= sampling_rate <= 5000:
-        raise HTTPException(422, "Sampling rate must be between 50 and 5000 Hz.")
-    contents = {}
-    for f in files:
-        contents[Path(f.filename or "upload.csv").name] = await f.read()
-    if sum(len(c) for c in contents.values()) > MAX_UPLOAD_BYTES:
-        raise HTTPException(413, "Upload is larger than 20 MB.")
-
-    if any(n.lower().endswith((".hea", ".dat", ".atr")) for n in contents):
-        prepared = run_prepare(prepare_wfdb, contents)
-        return build_response(prepared, f"Record {prepared[3]['record']}")
-    if len(contents) > 1:
-        raise HTTPException(422, "Upload one file at a time (or the .hea/.dat/.atr files of one WFDB record).")
-    name, content = next(iter(contents.items()))
-    return build_response(run_prepare(prepare_input, content, name, sampling_rate), name)
+async def predict(file: UploadFile = File(...)):
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "File is larger than 20 MB.")
+    name = Path(file.filename or "upload.csv").name
+    return build_response(run_prepare(prepare_input, content, name), name)
 
 
 # ---------------------------------------------------------------- bundled test samples
@@ -169,7 +153,7 @@ def download_sample(name: str):
 @app.post("/api/samples/{name}/predict")
 def predict_sample(name: str):
     path = contained_file(SAMPLES_DIR, name)
-    return build_response(run_prepare(prepare_input, path.read_bytes(), path.name, 125.0), path.name)
+    return build_response(run_prepare(prepare_input, path.read_bytes(), path.name), path.name)
 
 
 # ---------------------------------------------------------------- model performance

@@ -52,9 +52,8 @@ export async function getSampleValues(name) {
   return (await res.text()).trim().split(/[,\s]+/).map(Number)
 }
 
-export function predictFiles(files, samplingRate) {
+export function predictFile(file) {
   const form = new FormData()
-  for (const file of files) form.append('files', file)
-  form.append('sampling_rate', String(samplingRate))
+  form.append('file', file)
   return request('/api/predict', { method: 'POST', body: form })
 }
