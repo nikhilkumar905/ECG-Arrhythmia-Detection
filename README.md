@@ -241,27 +241,92 @@ pred = model(x).argmax(1)   # 0=N, 1=S, 2=V, 3=F, 4=Q
 
 ## Getting started
 
-**Requirements:** Python 3.10–3.13 and Node.js 18+
+### Requirements
+
+| Tool | Version | Check with |
+|---|---|---|
+| Git | any | `git --version` |
+| Python | 3.10–3.13 (PyTorch has no wheels for newer versions yet) | `python --version` |
+| Node.js | 18 or newer | `node --version` |
+
+The trained model (`models/`) is included in the repository, so no training or download is needed.
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/nikhilkumar905/ECG-Arrhythmia-Detection.git
 cd ECG-Arrhythmia-Detection
+```
 
-# Backend (http://localhost:8001)
+### 2. Set up and start the backend (terminal 1)
+
+**Windows**
+
+```powershell
 cd backend
 python -m venv .venv
-.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+.venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --port 8001
+```
 
-# Frontend (http://localhost:5173), in a second terminal
+**macOS / Linux**
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --port 8001
+```
+
+The first `pip install` downloads PyTorch (about 200 MB) and takes a few minutes. The backend is ready when the
+terminal shows `Application startup complete`; check it at http://localhost:8001/api/health or browse the API docs
+at http://localhost:8001/docs.
+
+### 3. Set up and start the frontend (terminal 2)
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-On Windows, after the first install you can simply run `start.bat`.
-Interactive API docs are available at http://localhost:8001/docs.
+### 4. Open the app
+
+Go to **http://localhost:5173**. The badge in the top-right corner should read **Model online**. Try
+**Load random beat → Analyze**, or upload [`examples/batch_100_beats_with_labels.csv`](examples/batch_100_beats_with_labels.csv).
+
+### Running it again later
+
+Setup is only needed once. After that:
+
+- **Windows:** double-click `start.bat` in the project folder. It opens one window for the backend and one for the
+  frontend, then opens the app in your browser.
+- **Any system:** open two terminals and run
+
+  ```bash
+  # terminal 1
+  cd backend
+  .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
+  uvicorn main:app --port 8001
+
+  # terminal 2
+  cd frontend
+  npm run dev
+  ```
+
+Stop either server with `Ctrl + C` (or close its window).
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `pip install` cannot find `torch` | Your Python is too new; install Python 3.13 and create the virtual environment with it (Windows: `py -3.13 -m venv .venv`) |
+| `Address already in use` / port 8001 busy | Another program uses the port; start with `uvicorn main:app --port 8002` and run the frontend with `API_PROXY=http://127.0.0.1:8002 npm run dev` (PowerShell: `$env:API_PROXY="http://127.0.0.1:8002"; npm run dev`) |
+| App shows **Backend offline** | Make sure terminal 1 is running and shows `Application startup complete`, then refresh the page |
+| `npm` or `node` not found | Install Node.js 18+ from https://nodejs.org and open a new terminal |
+| `.venv\Scripts\activate` is blocked in PowerShell | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or use Command Prompt instead |
 
 ## Input format
 

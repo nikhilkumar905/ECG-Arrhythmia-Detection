@@ -18,3 +18,8 @@ ecg2/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Presentation slides and notes (kept local)
+presentation/
+*.pptx
+*.pdf
